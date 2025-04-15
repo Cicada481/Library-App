@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -6,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PYTHON_API_URL = 'http://localhost:5001';
+const PYTHON_API_URL = process.env.FLASK_API_URL;
 
 // Member endpoints
 app.post('/api/member', async(req, res) => {
