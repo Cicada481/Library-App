@@ -2,12 +2,14 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from models import db, ma, Member, Book, Borrow
+import os
 from schemas import MemberSchema, BookSchema, BorrowSchema
 from sqlalchemy import text
 
 app = Flask(__name__)
 CORS(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///library.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI', 'sqlite:///library.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
@@ -105,31 +107,51 @@ def delete_book(title, author):
 @app.route('/borrow', methods=['POST'])
 def add_borrow():
     data = request.json
-    # Check if member exists
-    member = Member.query.get(data['name'])
-    if not member:
-        return jsonify({"error": "Member not found"}), 404
-    
-    # Check if book exists and has available copies
-    book = Book.query.get((data['title'], data['author']))
-    if not book:
-        return jsonify({"error": "Book not found"}), 404
-    if book.num_copies <= 0:
-        return jsonify({"error": "No copies available"}), 400
-    
-    # Check if the specified user has already borrowed the specified book
-    borrow = Borrow.query.get((data['name'], data['title'], data['author']))
-    if borrow:
-        return jsonify({"error": "Book already borrowed"}), 400
+    # The entire logic that involves database interaction should be within the transaction
+    try: # Add a try block for robust error handling around the transaction
+        with db.session.begin(): # Explicit Transaction starts here
+            # Perform all database reads and writes within the transaction
+            
+            # Check if member exists
+            member = Member.query.get(data['name'])
+            if not member:
+                # Returning inside a 'with' block will trigger rollback
+                return jsonify({"error": "Member not found"}), 404 
+            
+            # Check if book exists and has available copies
+            book = Book.query.get((data['title'], data['author']))
+            if not book:
+                # Returning inside a 'with' block will trigger rollback
+                return jsonify({"error": "Book not found"}), 404
+            if book.num_copies <= 0:
+                 # Returning inside a 'with' block will trigger rollback
+                return jsonify({"error": "No copies available"}), 400
+            
+            # Check if the specified user has already borrowed the specified book
+            # This read is now part of the transaction
+            borrow = Borrow.query.get((data['name'], data['title'], data['author']))
+            if borrow:
+                 # Returning inside a 'with' block will trigger rollback
+                return jsonify({"error": "Book already borrowed"}), 400
 
-    # Create borrow record
-    new_borrow = Borrow(**data)
+            # Create borrow record (This adds it to the session within the transaction)
+            new_borrow = Borrow(**data)
+            db.session.add(new_borrow) # Staged
 
-    with db.session.begin(): # Transaction lock
-        # Decrease book copies
-        book.num_copies -= 1
-        db.session.add(new_borrow)
-    return jsonify(borrow_schema.dump(new_borrow)), 201
+            # Decrease book copies (This modification is tracked by the session)
+            book.num_copies -= 1 # Staged
+
+        # If the 'with' block completes without returning or raising an exception,
+        # the transaction is committed automatically here.
+        # new_borrow is now persistent.
+        return jsonify(borrow_schema.dump(new_borrow)), 201
+
+    except Exception as e:
+        # This catches any other exceptions during the process (including database errors during commit)
+        # The 'with' block automatically handled the rollback.
+        print(f"Error in add_borrow: {e}") # Log the error
+        # Optional: db.session.rollback() # Redundant with 'with begin()' but doesn't hurt
+        return jsonify({"error": "Failed to create borrow record", "details": str(e)}), 500 # Return 500 error
 
 @app.route('/borrows', methods=['GET'])
 def get_borrows():
@@ -138,15 +160,35 @@ def get_borrows():
 
 @app.route('/borrow/<name>/<title>/<author>', methods=['DELETE'])
 def return_book(name, title, author):
-    borrow = Borrow.query.get_or_404((name, title, author))
-    
-    # Increase book copies
-    with db.session.begin(): # Transaction lock
-        book = Book.query.get((title, author))
-        if book:
-            book.num_copies += 1
-        db.session.delete(borrow)
-    return jsonify({"message": "Book returned successfully"})
+    # Move the get_or_404 and subsequent logic inside the transaction
+    try: # Add a try block for robustness
+        with db.session.begin(): # Explicit Transaction starts here
+            # Get the borrow record (This read is now part of the transaction)
+            # get_or_404 raises NotFound exception if not found -> triggers rollback automatically
+            borrow = Borrow.query.get_or_404((name, title, author))
+
+            # Increase book copies (This modification is tracked by the session)
+            # Get the book object *within* the transaction
+            book = Book.query.get((title, author))
+            if book:
+                book.num_copies += 1
+            
+            # Delete the borrow record (This marks it for deletion in the session)
+            db.session.delete(borrow)
+            
+        # If the 'with' block exits successfully, the transaction is committed automatically.
+        # If get_or_404 raised NotFound, the 'try' block is exited, and Flask handles the 404.
+
+        # Return the success message after successful commit (or if 404 was raised).
+        # Note: If 404 was raised, this line is not reached.
+        return jsonify({"message": "Book returned successfully"})
+
+    except Exception as e:
+        # This catches any other exceptions (e.g., database errors during commit)
+        # The 'with' block already rolled back the transaction.
+        print(f"Error in return_book: {e}") # Log the error
+        # Optional: db.session.rollback() # Redundant with 'with begin()' but doesn't hurt
+        return jsonify({"error": "Failed to return book", "details": str(e)}), 500 # Return 500 error
 
 # Member report endpoint
 @app.route('/member-report/<name>', methods=['GET'])

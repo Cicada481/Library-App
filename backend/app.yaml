@@ -1,0 +1,12 @@
+runtime: python39 # Or higher, e.g., python312
+service: backend # Give your Flask backend this service name
+
+entrypoint: gunicorn -b :$PORT app:app # Adjust 'app:app' if your Flask app instance is named differently or in another file in backend/
+
+instance_class: F1 # Suitable for demo/low traffic
+
+env_variables:
+  # Set the path to your SQLite database *relative to the application root*
+  # When you deploy the 'backend' directory, 'instance/' will be directly under the app root.
+  SQLALCHEMY_DATABASE_URI: sqlite:////tmp/library.db
+  # Add any other Flask env variables needed
