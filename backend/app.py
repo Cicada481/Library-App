@@ -25,8 +25,8 @@ borrow_schema = BorrowSchema()
 def add_member():
     data = request.json
     new_member = Member(**data)
-    db.session.add(new_member)
-    db.session.commit()
+    with db.session.begin(): # Transaction
+        db.session.add(new_member)
     return jsonify(member_schema.dump(new_member)), 201
 
 @app.route('/members', methods=['GET'])
@@ -41,22 +41,22 @@ def get_member(name):
 
 @app.route('/member/<name>', methods=['PUT'])
 def update_member(name):
-    member = Member.query.get_or_404(name)
     data = request.json
-    
-    if 'email' in data:
-        member.email = data['email']
-    if 'age' in data:
-        member.age = data['age']
-    
-    db.session.commit()
+
+    with db.session.begin(): # Transaction
+        member = Member.query.get_or_404(name)
+        if 'email' in data:
+            member.email = data['email']
+        if 'age' in data:
+            member.age = data['age']
+            
     return jsonify(member_schema.dump(member))
 
 @app.route('/member/<name>', methods=['DELETE'])
 def delete_member(name):
-    member = Member.query.get_or_404(name)
-    db.session.delete(member)
-    db.session.commit()
+    with db.session.begin():
+        member = Member.query.get_or_404(name)
+        db.session.delete(member)
     return jsonify({"message": "Member deleted successfully"})
 
 # Book endpoints
@@ -64,8 +64,8 @@ def delete_member(name):
 def add_book():
     data = request.json
     new_book = Book(**data)
-    db.session.add(new_book)
-    db.session.commit()
+    with db.session.begin(): # Transaction
+        db.session.add(new_book)
     return jsonify(book_schema.dump(new_book)), 201
 
 @app.route('/books', methods=['GET'])
@@ -80,24 +80,25 @@ def get_book(title, author):
 
 @app.route('/book/<title>/<author>', methods=['PUT'])
 def update_book(title, author):
-    book = Book.query.get_or_404((title, author))
     data = request.json
+
+    with db.session.begin(): # Transaction
+        book = Book.query.get_or_404((title, author))
+        if 'year_published' in data:
+            book.year_published = data['year_published']
+        if 'num_pages' in data:
+            book.num_pages = data['num_pages']
+        if 'num_copies' in data:
+            book.num_copies = data['num_copies']
     
-    if 'year_published' in data:
-        book.year_published = data['year_published']
-    if 'num_pages' in data:
-        book.num_pages = data['num_pages']
-    if 'num_copies' in data:
-        book.num_copies = data['num_copies']
-    
-    db.session.commit()
     return jsonify(book_schema.dump(book))
 
 @app.route('/book/<title>/<author>', methods=['DELETE'])
 def delete_book(title, author):
-    book = Book.query.get_or_404((title, author))
-    db.session.delete(book)
-    db.session.commit()
+    with db.session.begin(): # Transaction
+        book = Book.query.get_or_404((title, author))
+        db.session.delete(book)
+    
     return jsonify({"message": "Book deleted successfully"})
 
 # Borrow endpoints
@@ -124,12 +125,10 @@ def add_borrow():
     # Create borrow record
     new_borrow = Borrow(**data)
 
-    
-    # Decrease book copies
-    book.num_copies -= 1
-    
-    db.session.add(new_borrow)
-    db.session.commit()
+    with db.session.begin(): # Transaction lock
+        # Decrease book copies
+        book.num_copies -= 1
+        db.session.add(new_borrow)
     return jsonify(borrow_schema.dump(new_borrow)), 201
 
 @app.route('/borrows', methods=['GET'])
@@ -142,12 +141,11 @@ def return_book(name, title, author):
     borrow = Borrow.query.get_or_404((name, title, author))
     
     # Increase book copies
-    book = Book.query.get((title, author))
-    if book:
-        book.num_copies += 1
-    
-    db.session.delete(borrow)
-    db.session.commit()
+    with db.session.begin(): # Transaction lock
+        book = Book.query.get((title, author))
+        if book:
+            book.num_copies += 1
+        db.session.delete(borrow)
     return jsonify({"message": "Book returned successfully"})
 
 # Member report endpoint
@@ -182,15 +180,7 @@ def get_member_report(name):
         books_result = db.session.execute(books_query, {"name": name}).fetchall()
 
                 # Prepare the response
-        borrowed_books = []
-        for book in books_result:
-            borrowed_books.append({
-                "title": book.title,
-                "author": book.author,
-                "year_published": book.year_published,
-                "num_pages": book.num_pages,
-                "num_copies": book.num_copies
-            })
+        borrowed_books = book_schema.dump(books_result, many=True)
         
         # Prepared statement to calculate statistics
         stats_query = text("""
@@ -207,11 +197,7 @@ def get_member_report(name):
         
         # Format the response with both sections
         response = {
-            "member_details": {
-                "name": member_result.name,
-                "email": member_result.email,
-                "age": member_result.age
-            },
+            "member_details": member_schema.dump(member_result),
             "statistics": {
                 "books_borrowed": stats_result.books_borrowed if stats_result.books_borrowed else 0,
                 "avg_book_length": round(stats_result.avg_book_length, 1) if stats_result.avg_book_length else None,

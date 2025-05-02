@@ -20,6 +20,3 @@ class Borrow(db.Model):
     name = db.Column(db.String(100), db.ForeignKey('member.name'), primary_key=True)
     title = db.Column(db.String(200), primary_key=True)
     author = db.Column(db.String(100), primary_key=True)
-    __table_args__ = (
-        db.ForeignKeyConstraint(['title', 'author'], ['book.title', 'book.author']),
-    )
