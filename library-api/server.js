@@ -11,7 +11,7 @@ app.use(express.json());
 const PYTHON_API_URL = process.env.FLASK_API_URL;
 
 // Member endpoints
-app.post('/api/member', async(req, res) => {
+app.post('/member', async(req, res) => {
     try {
         const response = await axios.post(`${PYTHON_API_URL}/member`, req.body);
         res.json(response.data);
@@ -24,7 +24,7 @@ app.post('/api/member', async(req, res) => {
     }
 });
 
-app.get('/api/members', async (req, res) => {
+app.get('/members', async (req, res) => {
     try {
         console.log('Fetching members from Python API...');
         const response = await axios.get(`${PYTHON_API_URL}/members`);
@@ -43,7 +43,7 @@ app.get('/api/members', async (req, res) => {
     }
 });
 
-app.get('/api/member/:name', async (req, res) => {
+app.get('/member/:name', async (req, res) => {
     try {
         const response = await axios.get(`${PYTHON_API_URL}/member/${encodeURIComponent(req.params.name)}`);
         res.json(response.data);
@@ -55,7 +55,7 @@ app.get('/api/member/:name', async (req, res) => {
     }
 });
 
-app.put('/api/member/:name', async (req, res) => {
+app.put('/member/:name', async (req, res) => {
     try {
         const response = await axios.put(`${PYTHON_API_URL}/member/${encodeURIComponent(req.params.name)}`, req.body);
         res.json(response.data);
@@ -67,7 +67,7 @@ app.put('/api/member/:name', async (req, res) => {
     }
 });
 
-app.delete('/api/member/:name', async (req, res) => {
+app.delete('/member/:name', async (req, res) => {
     try {
         const response = await axios.delete(`${PYTHON_API_URL}/member/${encodeURIComponent(req.params.name)}`);
         res.json(response.data);
@@ -80,7 +80,7 @@ app.delete('/api/member/:name', async (req, res) => {
 });
 
 // Book endpoints
-app.post('/api/book', async (req, res) => {
+app.post('/book', async (req, res) => {
     try {
         const response = await axios.post(`${PYTHON_API_URL}/book`, req.body);
         res.json(response.data);
@@ -93,7 +93,7 @@ app.post('/api/book', async (req, res) => {
     }
 });
 
-app.get('/api/books', async (req, res) => {
+app.get('/books', async (req, res) => {
     try {
         console.log('Fetching books from Python API...');
         const response = await axios.get(`${PYTHON_API_URL}/books`);
@@ -112,7 +112,7 @@ app.get('/api/books', async (req, res) => {
     }
 });
 
-app.get('/api/book/:title/:author', async (req, res) => {
+app.get('/book/:title/:author', async (req, res) => {
     try {
         const { title, author } = req.params;
         const response = await axios.get(
@@ -127,7 +127,7 @@ app.get('/api/book/:title/:author', async (req, res) => {
     }
 });
 
-app.put('/api/book/:title/:author', async (req, res) => {
+app.put('/book/:title/:author', async (req, res) => {
     try {
         const { title, author } = req.params;
         const response = await axios.put(
@@ -143,7 +143,7 @@ app.put('/api/book/:title/:author', async (req, res) => {
     }
 });
 
-app.delete('/api/book/:title/:author', async (req, res) => {
+app.delete('/book/:title/:author', async (req, res) => {
     try {
         const { title, author } = req.params;
         const response = await axios.delete(
@@ -159,7 +159,7 @@ app.delete('/api/book/:title/:author', async (req, res) => {
 });
 
 // Borrow endpoints
-app.post('/api/borrow', async (req, res) => {
+app.post('/borrow', async (req, res) => {
     try {
         const response = await axios.post(`${PYTHON_API_URL}/borrow`, req.body);
         res.json(response.data);
@@ -170,7 +170,7 @@ app.post('/api/borrow', async (req, res) => {
     }
 });
 
-app.get('/api/borrows', async (req, res) => {
+app.get('/borrows', async (req, res) => {
     try {
         const response = await axios.get(`${PYTHON_API_URL}/borrows`);
         res.json(response.data);
@@ -182,7 +182,7 @@ app.get('/api/borrows', async (req, res) => {
     }
 });
 
-app.delete('/api/borrow/:name/:title/:author', async (req, res) => {
+app.delete('/borrow/:name/:title/:author', async (req, res) => {
     try {
         const { name, title, author } = req.params;
         const response = await axios.delete(
@@ -200,7 +200,7 @@ app.delete('/api/borrow/:name/:title/:author', async (req, res) => {
 // Add this to your existing server.js file
 
 // Member report endpoint
-app.get('/api/member-report/:name', async (req, res) => {
+app.get('/member-report/:name', async (req, res) => {
     try {
         const { name } = req.params;
         console.log(`Fetching member report for ${name} from Python API...`);
@@ -222,7 +222,7 @@ app.get('/api/member-report/:name', async (req, res) => {
 
 
 // Test endpoint
-app.get('/api/test', (req, res) => {
+app.get('/test', (req, res) => {
     res.json({ message: 'API server is working' });
 });
 

@@ -1,0 +1,11 @@
+runtime: nodejs20 # Match your Node.js version
+service: default # The 'default' service gets the project's main URL
+
+entrypoint: npm start # Start command
+
+instance_class: F1 # Suitable for demo
+
+env_variables:
+  # The URL of your deployed Node.js API service
+  NEXT_PUBLIC_NODE_API_URL: 'https://library-api-dot-library-app-458604.ue.r.appspot.com' # You'll fill this in after deploying Node.js API (library-api service)
+  # Next.js requires NEXT_PUBLIC_ prefix for client-side access

@@ -1,1 +1,4 @@
+/venv/
 /backend/instance/library.db
+**/.env
+**/.env.*

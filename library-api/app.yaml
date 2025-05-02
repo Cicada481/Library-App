@@ -1,0 +1,11 @@
+runtime: nodejs20 # Or higher, e.g., nodejs20
+service: library-api # Give your Node.js API this service name
+
+entrypoint: npm start # Or specify your start command
+
+instance_class: F1 # Suitable for demo
+
+env_variables:
+  # The URL of your deployed Flask backend service
+  FLASK_API_URL: 'https://backend-dot-library-app-458604.ue.r.appspot.com' # You'll fill this in after deploying Flask (backend service)
+  # Add any other Node.js API env variables needed
