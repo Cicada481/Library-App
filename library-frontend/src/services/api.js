@@ -12,7 +12,8 @@ let fetchingPromise = null;
 const fetchApiUrl = async () => {
     try {
         // Call the API route we created in pages/api/config.js
-        console.log('Fetching API URL from /api/config...'); // For debugging
+        console.log('Fetching API URL from /api/config...'); // For debugging in production server logs
+        // Use an absolute path starting with / to ensure it calls the local frontend service's own API route
         const response = await axios.get('/api/config');
         console.log('Successfully fetched API URL:', response.data.nodeApiUrl); // For debugging
         return response.data.nodeApiUrl; // Return the URL string from the server
@@ -23,26 +24,34 @@ const fetchApiUrl = async () => {
     }
 };
 
-// Internal async function to ensure fetchedApiUrl is populated before any API call.
-// It fetches if needed, or waits for an ongoing fetch.
+// Internal async function to ensure fetchedApiUrl is populated.
+// It handles both local dev and production fetching.
 const _ensureApiUrl = async () => {
     // If the URL is already fetched, just return
     if (fetchedApiUrl) {
         return;
     }
 
+    // *** Check if running in local development environment ***
+    if (process.env.NODE_ENV === 'development') {
+        // In development, use the hardcoded local API URL
+        fetchedApiUrl = 'http://localhost:3001'; // Your local Node.js API port
+        console.log('Using local DEV API URL:', fetchedApiUrl); // For debugging local browser console
+        return; // Exit the function, no fetching from /api/config needed
+    }
+    // *** End local development check ***
+
+
+    // If running in production (NODE_ENV === 'production')
     // If a fetch is already in progress, wait for that one to complete
     if (fetchingPromise) {
         await fetchingPromise;
-        // After awaiting, the URL should be fetched if the promise resolved successfully
-        if (fetchedApiUrl) {
-            return;
-        }
-        // If promise resolved but fetchedApiUrl is still null, the fetch likely failed but didn't throw
-         throw new Error('API URL fetch promise completed, but URL is still missing.');
+         // After awaiting, the URL should be fetched if the promise resolved successfully
+        if (fetchedApiUrl) { return; }
+         throw new Error('API URL fetch promise completed, but URL is still missing.'); // Should not happen if fetchApiUrl throws properly
     }
 
-    // No URL fetched and no fetch in progress, so start fetching
+    // No URL fetched and no fetch in progress, so start fetching from /api/config
     // Store the promise so other calls can wait for this fetch
     fetchingPromise = fetchApiUrl();
     try {
@@ -52,13 +61,10 @@ const _ensureApiUrl = async () => {
         fetchingPromise = null;
     }
 
-    // If fetchedApiUrl is still null here, the fetchApiUrl must have thrown an error, which was caught above
-    // and should have propagated. This check is a safeguard.
      if (!fetchedApiUrl) {
          throw new Error('API URL fetch completed but returned no URL.');
      }
 };
-// --- End Workaround ---
 
 
 // --- Member functions (Original structure + added await _ensureApiUrl()) ---
